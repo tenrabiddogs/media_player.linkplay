@@ -611,6 +611,7 @@ class LinkPlayDevice(MediaPlayerDevice):
         import validators
 
         self._media_title = None
+        self._media_artist = None
         self._media_album = None
         self._media_image_url = None
 
@@ -619,28 +620,35 @@ class LinkPlayDevice(MediaPlayerDevice):
 
         media_info = self._upnp_device.AVTransport.GetMediaInfo(InstanceID=0)
         media_info = media_info.get('CurrentURIMetaData')
-
         if media_info is None:
             return
 
         xml_tree = ET.fromstring(media_info)
 
-        xml_path = "{urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/}item/"
-        title_xml_path = "{http://purl.org/dc/elements/1.1/}title"
-        artist_xml_path = "{urn:schemas-upnp-org:metadata-1-0/upnp/}artist"
-        album_xml_path = "{urn:schemas-upnp-org:metadata-1-0/upnp/}album"
-        image_xml_path = "{urn:schemas-upnp-org:metadata-1-0/upnp/}albumArtURI"
+        ns = {
+            'didl': 'urn:schemas-upnp-org:metadata-1-0/DIDL-Lite/',
+            'upnp': 'urn:schemas-upnp-org:metadata-1-0/upnp/',
+            'dc': 'http://purl.org/dc/elements/1.1/'
+        }
 
-        self._media_title = \
-            xml_tree.find("{0}{1}".format(xml_path, title_xml_path)).text
-        self._media_artist = \
-            xml_tree.find("{0}{1}".format(xml_path, artist_xml_path)).text
-        self._media_album = \
-            xml_tree.find("{0}{1}".format(xml_path, album_xml_path)).text
-        self._media_image_url = \
-            xml_tree.find("{0}{1}".format(xml_path, image_xml_path)).text
+        # Arylic (and possibly other) devices have a DIDL-Lite tag surrounding the item
+        item_xml_node = xml_tree.find("didl:item", ns)
+        if item_xml_node is None:
+            item_xml_node = xml_tree.find("didl:DIDL-Lite/item", ns)
+        if item_xml_node is None:
+            _LOGGER.warning("Failed to find item tag in UPNP response [%s]", media_info)
+            return
 
-        if not validators.url(self._media_image_url):
+        self._media_title = item_xml_node.findtext("dc:title", None, ns)
+        self._media_artist = item_xml_node.findtext("upnp:artist", None, ns)
+        self._media_album = item_xml_node.findtext("upnp:album", None, ns)
+        self._media_image_url = item_xml_node.findtext("upnp:albumArtURI", None, ns)
+
+        # Internet radio may have the track information in the subtitle instead of the artist and album
+        if self._media_artist is None:
+            self._media_artist = item_xml_node.findtext("dc:subtitle", None, ns)
+
+        if self._media_image_url is not None and not validators.url(self._media_image_url):
             self._media_image_url = None
 
     def _update_from_id3(self):
