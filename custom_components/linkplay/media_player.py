@@ -322,52 +322,42 @@ class LinkPlayDevice(MediaPlayerDevice):
         self._lpapi.call('GET', 'setShutdown:0')
         value = self._lpapi.data
         if value != "OK":
-            _LOGGER.warning("Failed to power off the device. Got response: %s",
-                            value)
+            _LOGGER.warning("Failed to power off the device. Got response: %s", value)
 
     def set_volume_level(self, volume):
         """Set volume level, range 0..1."""
         volume = str(round(volume * MAX_VOL))
         if not self._slave_mode:
-            self._lpapi.call('GET', 'setPlayerCmd:vol:{0}'.format(str(volume)))
+            self._lpapi.call('GET', 'setPlayerCmd:slave_vol:{0}'.format(str(volume)))
             value = self._lpapi.data
             if value == "OK":
                 self._volume = volume
             else:
-                _LOGGER.warning("Failed to set volume. Got response: %s",
-                                value)
+                _LOGGER.warning("Failed to set volume. Got response: %s", value)
         else:
-            self._master.lpapi.call('GET',
-                                    'multiroom:SlaveVolume:{0}:{1}'.format(
-                                        self._slave_ip, str(volume)))
+            self._master.lpapi.call('GET', 'multiroom:SlaveVolume:{0}:{1}'.format(self._slave_ip, str(volume)))
             value = self._master.lpapi.data
             if value == "OK":
                 self._volume = volume
             else:
-                _LOGGER.warning("Failed to set volume. Got response: %s",
-                                value)
+                _LOGGER.warning("Failed to set volume. Got response: %s", value)
 
     def mute_volume(self, mute):
         """Mute (true) or unmute (false) media player."""
         if not self._slave_mode:
-            self._lpapi.call('GET',
-                             'setPlayerCmd:mute:{0}'.format(str(int(mute))))
+            self._lpapi.call('GET', 'setPlayerCmd:slave_mute:{0}'.format(str(int(mute))))
             value = self._lpapi.data
             if value == "OK":
                 self._muted = mute
             else:
-                _LOGGER.warning("Failed mute/unmute volume. Got response: %s",
-                                value)
+                _LOGGER.warning("Failed mute/unmute volume. Got response: %s", value)
         else:
-            self._master.lpapi.call('GET',
-                                    'multiroom:SlaveMute:{0}:{1}'.format(
-                                        self._slave_ip, str(int(mute))))
+            self._master.lpapi.call('GET', 'multiroom:SlaveMute:{0}:{1}'.format(self._slave_ip, str(int(mute))))
             value = self._master.lpapi.data
             if value == "OK":
                 self._muted = mute
             else:
-                _LOGGER.warning("Failed mute/unmute volume. Got response: %s",
-                                value)
+                _LOGGER.warning("Failed mute/unmute volume. Got response: %s", value)
 
     def media_play(self):
         """Send play command."""
